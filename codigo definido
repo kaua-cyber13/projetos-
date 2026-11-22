@@ -1,0 +1,285 @@
+
+#  VALIDAÇÃO DO CNPJ
+
+def validate_cnpj(cnpj):
+    cnpj = ''.join(filter(str.isdigit, cnpj))
+
+    if len(cnpj) != 14 or cnpj == '00000000000000':
+        return False
+
+    def calculate_digit(cnpj, digit):
+        weights = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+
+        if digit == 1:
+            weights = weights[1:]
+
+        total = sum(
+            int(cnpj[i]) * weights[i]
+            for i in range(len(weights))
+        )
+
+        remainder = total % 11
+
+        return '0' if remainder < 2 else str(11 - remainder)
+
+    first_digit = calculate_digit(cnpj[:12], 1)
+    second_digit = calculate_digit(cnpj[:12] + first_digit, 2)
+
+    return cnpj[-2:] == first_digit + second_digit
+
+
+#  FORMATAÇÃO DE MOEDA
+
+def formatar_moeda(valor):
+    return f'R$ {valor:.2f}'.replace('.', ',')
+
+#  CADASTRO DO FORNECEDOR
+
+numero = input('Digite o CNPJ: ')
+
+if validate_cnpj(numero):
+
+    print('\nCNPJ válido!')
+
+    nome = input('Digite o nome do fornecedor/empresa: ')
+    telefone = input('Digite o número do telefone: ')
+    email = input('Digite o endereço de email: ')
+
+    print(f'\nOlá, seja bem-vindo(a), {nome}!')
+    print('Suas informações foram registradas com sucesso!')
+    print(f'{nome}, {telefone}, {email}, {numero}')
+
+    #  CADASTRO DE PRODUTOS
+    produtos = {}
+
+    def cadastrar_produto():
+
+        print('\n=== CADASTRO DE PRODUTO ===')
+
+        nome_produto = input('Nome do produto: ').strip()
+
+        if nome_produto == '':
+            print('Erro: nome não pode ficar vazio.')
+            return
+
+        categoria = input('Categoria: ').strip()
+
+        if categoria == '':
+            print('Erro: categoria não pode ficar vazia.')
+            return
+
+        try:
+            preco = float(
+                input('Preço: R$ ').replace(',', '.')
+            )
+
+            if preco <= 0:
+                print('Erro: preço deve ser maior que zero.')
+                return
+
+        except ValueError:
+            print('Erro: informe um preço válido.')
+            return
+
+        try:
+            estoque = int(
+                input('Quantidade em estoque: ')
+            )
+
+            if estoque <= 0:
+                print('Erro: estoque deve ser maior que zero.')
+                return
+
+        except ValueError:
+            print('Erro: informe uma quantidade inteira.')
+            return
+
+        # Verifica se o produto já existe
+        for codigo, dados in produtos.items():
+
+            if dados['nome'].lower() == nome_produto.lower():
+
+                print('Esse produto já está cadastrado!')
+                return
+
+        codigo = len(produtos) + 1
+
+        produto = {
+            'nome': nome_produto,
+            'categoria': categoria,
+            'preco': preco,
+            'quantidade': estoque
+        }
+
+        produtos[codigo] = produto
+
+        print('\nProduto cadastrado com sucesso!')
+
+    #  LISTAR PRODUTOS
+
+    def listar_produtos():
+
+        print('\n=== PRODUTOS CADASTRADOS ===')
+
+        if not produtos:
+            print('Nenhum produto cadastrado.')
+            return
+
+        for codigo, produto in produtos.items():
+
+            print('----------------------')
+            print('Nome:', produto['nome'])
+            print('Categoria:', produto['categoria'])
+            print('Preço:', formatar_moeda(produto['preco']))
+            print('Estoque:', produto['quantidade'])
+
+    # Menu de cadastro
+    while True:
+
+        cadastrar_produto()
+
+        opcao = input(
+            '\nDeseja cadastrar outro produto? (S/N): '
+        ).upper()
+
+        if opcao != 'S':
+            break
+
+    listar_produtos()
+
+    #  CADASTRO DO CLIENTE
+
+    if len(produtos) > 0:
+
+        print('\n--- CADASTRO DO CLIENTE ---')
+
+        cliente = input('Digite o nome do cliente: ')
+
+        carrinho = {}
+
+        while True:
+
+            print('\n--- PRODUTOS DISPONÍVEIS ---')
+
+            for codigo, dados in produtos.items():
+
+                print('\nProduto:', dados['nome'])
+                print('Categoria:', dados['categoria'])
+                print('Preço:', formatar_moeda(dados['preco']))
+                print('Estoque:', dados['quantidade'])
+
+            escolha = input(
+                '\nDigite o nome do produto desejado: '
+            ).strip()
+
+            codigo_encontrado = None
+
+            for codigo, dados in produtos.items():
+
+                if dados['nome'].lower() == escolha.lower():
+
+                    codigo_encontrado = codigo
+                    break
+
+            if codigo_encontrado is not None:
+
+                dados = produtos[codigo_encontrado]
+
+                quantidade_carrinho = carrinho.get(
+                    codigo_encontrado, 0
+                )
+
+                disponivel = (
+                    dados['quantidade'] - quantidade_carrinho
+                )
+
+                print('\nProduto escolhido:', dados['nome'])
+                print('Quantidade disponível:', disponivel)
+
+                try:
+                    compra = int(
+                        input('Quantas unidades deseja comprar? ')
+                    )
+
+                    if compra > 0 and compra <= disponivel:
+
+                        carrinho[codigo_encontrado] = (
+                            quantidade_carrinho + compra
+                        )
+
+                        print('Produto adicionado ao carrinho!')
+
+                    else:
+                        print('Quantidade indisponível no estoque!')
+
+                except ValueError:
+                    print('Informe uma quantidade inteira válida!')
+
+            else:
+                print('Produto não encontrado!')
+
+            continuar = input(
+                '\nDeseja adicionar outro produto? (S/N): '
+            ).upper()
+
+            if continuar != 'S':
+                break
+
+        # FINALIZAÇÃO DA COMPRA
+
+        if len(carrinho) > 0:
+
+            total = 0
+
+            print('\n================================')
+            print('       RESUMO DA COMPRA')
+            print('================================')
+
+            print(f'Cliente: {cliente}')
+
+            for codigo, quantidade in carrinho.items():
+
+                dados = produtos[codigo]
+
+                subtotal = dados['preco'] * quantidade
+                total += subtotal
+
+                print('\nProduto:', dados['nome'])
+                print('Categoria:', dados['categoria'])
+                print('Quantidade:', quantidade)
+
+                print(
+                    'Preço unitário:',
+                    formatar_moeda(dados['preco'])
+                )
+
+                print(
+                    'Subtotal:',
+                    formatar_moeda(subtotal)
+                )
+
+                dados['quantidade'] -= quantidade
+
+            print('\n================================')
+            print('VALOR TOTAL:', formatar_moeda(total))
+            print('================================')
+
+            print('\nCompra realizada com sucesso!')
+
+            print('\n--- ESTOQUE ATUALIZADO ---')
+
+            for codigo, dados in produtos.items():
+
+                print(
+                    f'{dados["nome"]}: '
+                    f'{dados["quantidade"]} unidades'
+                )
+
+        else:
+            print('\nNenhum produto foi selecionado.')
+
+    else:
+        print('\nNenhum produto cadastrado!')
+
+else:
+    print('\nCNPJ inválido! Cadastro não realizado.')
